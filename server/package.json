@@ -1,0 +1,14 @@
+{
+  "name": "character-api-server",
+  "version": "1.0.0",
+  "description": "Simple Express.js server for character API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^9.8.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}

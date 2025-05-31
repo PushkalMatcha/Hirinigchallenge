@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { Character, defaultCharacters } from './data/characters'
 import { categories } from './data/categories'
 import { useRouter } from 'next/navigation'
+import { getCharacters } from './services/api'
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat('en-US').format(num)
@@ -53,14 +54,15 @@ const featuredCharacters = [
 
 export default function Home() {
   const router = useRouter()
+  const [characters, setCharacters] = useState<Character[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
-  const [characters, setCharacters] = useState<Character[]>([])
   const [selectedCategory, setSelectedCategory] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
   const [hasAnimated, setHasAnimated] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Add these for scroll-based animations
   const { scrollYProgress } = useScroll()
@@ -73,18 +75,41 @@ export default function Home() {
     setMounted(true)
     // Set sidebar open by default only on desktop
     setIsSidebarOpen(window.innerWidth >= 768)
-    
+
     const loadData = async () => {
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        const userCharacters = JSON.parse(localStorage.getItem('characters') || '[]')
-        setCharacters([...defaultCharacters, ...userCharacters])
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+
+        const apiCharactersRaw = await getCharacters();
+
+        const apiCharacters = apiCharactersRaw.map(char => ({
+          ...char,
+          avatar: char.avatar || '/default.jpg',
+        }));
+
+        const userCharacters = JSON.parse(localStorage.getItem('characters') || '[]');
+
+        const combinedCharacters = await Promise.all(
+          [...defaultCharacters, ...userCharacters, ...apiCharacters].map(async char => {
+            if (!char.description) {
+              try {
+                const response = await fetch(`https://api.example.com/character-description?name=${encodeURIComponent(char.name)}&category=${encodeURIComponent(char.category || '')}`);
+                const data = await response.json();
+                char.description = data.description || `Discover the intriguing story of ${char.name}, a unique character in the realm of ${char.category || 'adventure'}.`;
+              } catch (error) {
+                char.description = `Explore the fascinating journey of ${char.name}, a remarkable figure in the world of ${char.category || 'mystery'}.`;
+              }
+            }
+            return char;
+          })
+        );
+
+        setCharacters(combinedCharacters);
       } catch (error) {
-        console.error('Error loading characters:', error)
-        setCharacters(defaultCharacters)
+        console.error('Error loading characters:', error);
+        setCharacters(defaultCharacters);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
     loadData()
@@ -98,12 +123,12 @@ export default function Home() {
   }, [])
 
   const filteredCharacters = characters.filter(character => {
-    const matchesCategory = !selectedCategory || character.category?.toLowerCase() === selectedCategory.toLowerCase()
+    const matchesCategory = !selectedCategory || character.category?.toLowerCase() === selectedCategory.toLowerCase();
     const matchesSearch = searchQuery === '' || 
       character.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      character.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      character.category?.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesCategory && matchesSearch
+      (character.description?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      character.category?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
   })
 
   const handleCategoryClick = (character: Character) => {
@@ -227,31 +252,44 @@ export default function Home() {
           <section className="space-y-4">
             <h2 className="text-xl sm:text-2xl font-semibold text-white">For You</h2>
             <div className="flex overflow-x-auto gap-4 sm:gap-6 -mx-4 px-4 sm:-mx-6 sm:px-6 scrollbar-hide">
-              {characters.map((character) => (
-                <Link
-                  key={character.id}
-                  href={`/chat/${character.id}`}
-                  className="flex-none w-[260px] sm:w-[300px] md:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group"
-                >
-                  <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="relative w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16">
-                      <Image
-                        src={character.imageUrl}
-                        alt={character.name}
-                        fill
-                        className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base sm:text-lg text-gray-100 font-semibold truncate group-hover:text-white">{character.name}</h3>
-                      <p className="text-sm text-gray-400 line-clamp-2 group-hover:text-gray-300">{character.description}</p>
-                      <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
-                        By {character.creator} • {formatNumber(character.interactions)} interactions
+              {characters
+                .sort((a, b) => {
+                  const priority = ['The Rock', 'Detective Holmes', 'Math Tutor'];
+                  const aPriority = priority.indexOf(a.name);
+                  const bPriority = priority.indexOf(b.name);
+                  return aPriority !== -1 && bPriority !== -1
+                    ? aPriority - bPriority
+                    : aPriority !== -1
+                    ? -1
+                    : bPriority !== -1
+                    ? 1
+                    : 0;
+                })
+                .map((character) => (
+                  <div
+                    key={character.id}
+                    onClick={() => handleCategoryClick(character)}
+                    className="flex-none w-[260px] sm:w-[300px] md:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group cursor-pointer"
+                  >
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="relative w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16">
+                        <Image
+                          src={character.avatar}
+                          alt={character.name}
+                          fill
+                          className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-base sm:text-lg text-gray-100 font-semibold truncate group-hover:text-white">{character.name}</h3>
+                        <p className="text-sm text-gray-400 line-clamp-2 h-10 group-hover:text-gray-300">{character.description || 'No description available.'}</p>
+                        <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
+                          By {character.creator} • {formatNumber(character.interactions)} interactions
+                        </div>
                       </div>
                     </div>
                   </div>
-                </Link>
-              ))}
+                ))}
             </div>
           </section>
 
@@ -259,146 +297,31 @@ export default function Home() {
           <section className="space-y-4 divide-y divide-gray-700/50">
             <h2 className="text-xl sm:text-2xl font-semibold text-white pb-4">Popular</h2>
             <div className="flex overflow-x-auto gap-4 sm:gap-6 -mx-4 px-4 sm:-mx-6 sm:px-6 scrollbar-hide pt-4">
-              <Link
-                href="/chat/beethoven"
-                className="flex-none w-[280px] sm:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group"
-              >
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="relative w-12 h-12 sm:w-16 sm:h-16">
-                    <Image
-                      src="/beethoven.jpeg"
-                      alt="Beethoven"
-                      fill
-                      className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-base sm:text-lg text-gray-100 group-hover:text-white">Beethoven</h3>
-                    <p className="text-gray-400 text-xs sm:text-sm group-hover:text-gray-300">Explore classical music and composition with the legendary composer.</p>
-                    <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
-                      By Music Team • {formatNumber(280000)} interactions
+              {characters.map((character) => (
+                <div
+                  key={character.id}
+                  onClick={() => handleCategoryClick(character)}
+                  className="flex-none w-[280px] sm:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group cursor-pointer"
+                >
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="relative w-12 h-12 sm:w-16 sm:h-16">
+                      <Image
+                        src={character.avatar}
+                        alt={character.name}
+                        fill
+                        className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-base sm:text-lg text-gray-100 group-hover:text-white">{character.name}</h3>
+                      <p className="text-gray-400 text-xs sm:text-sm group-hover:text-gray-300">{character.description || 'No description available.'}</p>
+                      <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
+                        By {character.creator} • {formatNumber(character.interactions)} interactions
+                      </div>
                     </div>
                   </div>
                 </div>
-              </Link>
-
-              <Link
-                href="/chat/picasso"
-                className="flex-none w-[280px] sm:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group"
-              >
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="relative w-12 h-12 sm:w-16 sm:h-16">
-                    <Image
-                      src="/picasso.jpg"
-                      alt="Picasso"
-                      fill
-                      className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-base sm:text-lg text-gray-100 group-hover:text-white">Picasso</h3>
-                    <p className="text-gray-400 text-xs sm:text-sm group-hover:text-gray-300">Discover modern art and cubism with the revolutionary artist.</p>
-                    <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
-                      By Art Team • {formatNumber(320000)} interactions
-                    </div>
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                href="/chat/ada"
-                className="flex-none w-[280px] sm:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group"
-              >
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="relative w-12 h-12 sm:w-16 sm:h-16">
-                    <Image
-                      src="/ada.jpg"
-                      alt="Ada Lovelace"
-                      fill
-                      className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-base sm:text-lg text-gray-100 group-hover:text-white">Ada Lovelace</h3>
-                    <p className="text-gray-400 text-xs sm:text-sm group-hover:text-gray-300">Learn about computing history and algorithms with the first programmer.</p>
-                    <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
-                      By AI Team • {formatNumber(290000)} interactions
-                    </div>
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                href="/chat/tesla"
-                className="flex-none w-[280px] sm:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group"
-              >
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="relative w-12 h-12 sm:w-16 sm:h-16">
-                    <Image
-                      src="/tesla.avif"
-                      alt="Nikola Tesla"
-                      fill
-                      className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-xs font-medium text-primary-400">Science</span>
-                    <h3 className="font-semibold text-base sm:text-lg text-gray-100 mt-1 group-hover:text-white">Nikola Tesla</h3>
-                    <p className="text-gray-400 text-xs sm:text-sm group-hover:text-gray-300">Explore electricity and innovation with the brilliant inventor.</p>
-                    <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
-                      By Science Team • {formatNumber(275000)} interactions
-                    </div>
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                href="/chat/davinci"
-                className="flex-none w-[280px] sm:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group"
-              >
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="relative w-12 h-12 sm:w-16 sm:h-16">
-                    <Image
-                      src="/davinci.webp"
-                      alt="Leonardo da Vinci"
-                      fill
-                      className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-xs font-medium text-primary-400">Art & Science</span>
-                    <h3 className="font-semibold text-base sm:text-lg text-gray-100 mt-1 group-hover:text-white">Leonardo da Vinci</h3>
-                    <p className="text-gray-400 text-xs sm:text-sm group-hover:text-gray-300">Discover the intersection of art and science with the Renaissance master.</p>
-                    <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
-                      By Renaissance Team • {formatNumber(310000)} interactions
-                    </div>
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                href="/chat/curie"
-                className="flex-none w-[280px] sm:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group"
-              >
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="relative w-12 h-12 sm:w-16 sm:h-16">
-                    <Image
-                      src="/curie.jpg"
-                      alt="Marie Curie"
-                      fill
-                      className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-xs font-medium text-primary-400">Science</span>
-                    <h3 className="font-semibold text-base sm:text-lg text-gray-100 mt-1 group-hover:text-white">Marie Curie</h3>
-                    <p className="text-gray-400 text-xs sm:text-sm group-hover:text-gray-300">Learn about radioactivity and pioneering research in physics and chemistry.</p>
-                    <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
-                      By Science Team • {formatNumber(295000)} interactions
-                    </div>
-                  </div>
-                </div>
-              </Link>
+              ))}
             </div>
           </section>
 
@@ -425,7 +348,7 @@ export default function Home() {
                     ))
                   ) : (
                     filteredCharacters.map((character) => (
-                      <div 
+                      <div
                         key={character.id}
                         onClick={() => handleCategoryClick(character)}
                         className="inline-block flex-shrink-0 w-[280px] bg-[#1e1e1e] p-4 rounded-xl shadow-md border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group cursor-pointer"
@@ -433,7 +356,7 @@ export default function Home() {
                         <div className="space-y-3">
                           <div className="relative w-full aspect-square rounded-lg overflow-hidden">
                             <Image
-                              src={character.imageUrl}
+                              src={character.avatar}
                               alt={character.name}
                               fill
                               className="object-cover transition-transform duration-300 group-hover:scale-105"
@@ -441,7 +364,7 @@ export default function Home() {
                           </div>
                           <div>
                             <h3 className="text-base font-semibold text-gray-100 truncate group-hover:text-white">{character.name}</h3>
-                            <p className="text-sm text-gray-400 line-clamp-2 h-10 group-hover:text-gray-300">{character.description}</p>
+                            <p className="text-sm text-gray-400 line-clamp-2 h-10 group-hover:text-gray-300">{character.description || 'No description available.'}</p>
                             <div className="mt-2">
                               <span className="text-xs text-gray-500 truncate block group-hover:text-gray-400">By {character.creator}</span>
                               <span className="text-xs text-gray-500 group-hover:text-gray-400">{formatNumber(character.interactions)} interactions</span>
@@ -680,4 +603,4 @@ export default function Home() {
       <ScrollToTop />
     </>
   )
-} 
+}

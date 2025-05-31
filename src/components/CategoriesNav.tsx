@@ -9,13 +9,28 @@ interface CategoriesNavProps {
 
 export default function CategoriesNav({ selectedCategory, onSelectCategory, className = '' }: CategoriesNavProps) {
   const [showAll, setShowAll] = useState(false)
+  const allCategory = categories.find(cat => cat.value === 'all')
   const filteredCategories = categories.filter(cat => cat.value !== 'all')
-  const initialCategories = filteredCategories.slice(0, 8) // Show first 8 categories by default
-  const remainingCategories = filteredCategories.slice(8)
+  const initialCategories = filteredCategories.slice(0, 7) // Show 7 categories + All by default
+  const remainingCategories = filteredCategories.slice(7)
 
   return (
     <div className={`${className}`}>
       <div className="flex flex-wrap gap-2 sm:gap-4">
+        {allCategory && (
+          <button
+            key={allCategory.value}
+            onClick={() => onSelectCategory(allCategory.value)}
+            className={`px-3 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 button-effect ${
+              selectedCategory === allCategory.value || selectedCategory === ''
+                ? 'bg-primary-600 text-white scale-105 shadow-lg'
+                : 'bg-[rgb(var(--background-darker-rgb))] text-gray-200 hover:bg-[rgb(var(--background-lighter-rgb))] hover:scale-105 border border-zinc-800'
+            }`}
+          >
+            {allCategory.name}
+          </button>
+        )}
+
         {initialCategories.map((category) => (
           <button
             key={category.value}
@@ -74,4 +89,4 @@ export default function CategoriesNav({ selectedCategory, onSelectCategory, clas
       )}
     </div>
   )
-} 
+}

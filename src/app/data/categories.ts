@@ -1,24 +1,21 @@
 export const categories = [
   { name: 'All', value: 'all' },
-  { name: 'Science', value: 'science' },
-  { name: 'Art', value: 'art' },
-  { name: 'Literature', value: 'literature' },
-  { name: 'History', value: 'history' },
-  { name: 'Music', value: 'music' },
-  { name: 'Philosophy', value: 'philosophy' },
-  { name: 'Technology', value: 'technology' },
-  { name: 'Fitness', value: 'fitness' },
-  { name: 'Cooking', value: 'cooking' },
-  { name: 'Language', value: 'language' },
-  { name: 'Business', value: 'business' },
-  { name: 'Psychology', value: 'psychology' },
-  { name: 'Meditation', value: 'meditation' },
-  { name: 'Education', value: 'education' },
-  { name: 'Gaming', value: 'gaming' },
-  { name: 'Travel', value: 'travel' },
-  { name: 'Fashion', value: 'fashion' },
-  { name: 'Sports', value: 'sports' },
-  { name: 'Entertainment', value: 'entertainment' }
+  { name: 'Science', value: 'Science' },
+  { name: 'Art', value: 'Art' },
+  { name: 'Literature', value: 'Literature' },
+  { name: 'Technology', value: 'Technology' },
+  { name: 'Education', value: 'Education' },
+  { name: 'Entertainment', value: 'Entertainment' },
+  { name: 'Sports', value: 'Sports' },
+  { name: 'Music', value: 'Music' },
+  { name: 'Cooking', value: 'Cooking' },
+  { name: 'Mystery', value: 'Mystery' },
+  { name: 'News', value: 'News' },
+  { name: 'AI', value: 'AI' },
+  { name: 'Cars', value: 'Cars' },
+  { name: 'Bikes', value: 'Bikes' },
+  { name: 'Writing', value: 'Writing' },
+  { name: 'Anime', value: 'Anime' }
 ]
 
-export type Category = typeof categories[number]['value'] 
+export type Category = typeof categories[number]['value']
