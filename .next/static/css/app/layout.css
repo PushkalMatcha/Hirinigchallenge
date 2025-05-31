@@ -750,6 +750,12 @@ video {
 .mt-auto {
   margin-top: auto;
 }
+.-ml-4 {
+  margin-left: -1rem;
+}
+.-mr-4 {
+  margin-right: -1rem;
+}
 .line-clamp-2 {
   overflow: hidden;
   display: -webkit-box;
@@ -1912,6 +1918,10 @@ body {
   background-color: rgb(234 179 8 / var(--tw-bg-opacity, 1));
 }
 
+.hover\:bg-black\/70:hover {
+  background-color: rgb(0 0 0 / 0.7);
+}
+
 .hover\:bg-gradient-to-r:hover {
   background-image: linear-gradient(to right, var(--tw-gradient-stops));
 }
@@ -2321,6 +2331,10 @@ body {
 }
 
 @media (min-width: 768px) {
+
+  .md\:left-64 {
+    left: 16rem;
+  }
 
   .md\:ml-64 {
     margin-left: 16rem;

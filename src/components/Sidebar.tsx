@@ -132,7 +132,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
         </div>
 
         <nav className="px-2 space-y-1">
-          {['/', '/discover'].map((path, index) => (
+          {['/'].map((path, index) => (
             <div
               key={path}
               onClick={() => handleNavigation(path)}
@@ -141,16 +141,10 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
               }`}
               style={{ animationDelay: `${200 + index * 100}ms` }}
             >
-              {path === '/' ? (
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              )}
-              <span className="text-sm sm:text-base">{path === '/' ? 'Home' : 'Discover'}</span>
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              <span className="text-sm sm:text-base">Discover</span>
             </div>
           ))}
         </nav>

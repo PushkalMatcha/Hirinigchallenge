@@ -1,56 +1,17 @@
 'use client'
 import React, { useEffect, useState } from 'react'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Sidebar from '@/components/Sidebar'
 import CategoriesNav from '@/components/CategoriesNav'
-import CharacterCard from '@/components/CharacterCard'
-import LoadingCard from '@/components/LoadingCard'
-import ScrollToTop from '@/components/ScrollToTop'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Character, defaultCharacters } from './data/characters'
-import { categories } from './data/categories'
 import { useRouter } from 'next/navigation'
 import { getCharacters } from './services/api'
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat('en-US').format(num)
 }
-
-const featuredCharacters = [
-  {
-    id: 'f1',
-    name: 'Einstein AI',
-    description: 'Explore physics and relativity with Einstein',
-    imageUrl: '/einstein.jpg',
-    category: 'Science',
-    creator: 'Science Team'
-  },
-  {
-    id: 'f2',
-    name: 'Shakespeare',
-    description: 'Discuss literature and poetry with the Bard',
-    imageUrl: '/Shakespeare.jpg',
-    category: 'Literature',
-    creator: 'Literature Team'
-  },
-  {
-    id: 'f3',
-    name: 'Chef Gordon',
-    description: 'Learn cooking from a master chef',
-    imageUrl: '/chef2.jpg',
-    category: 'Cooking',
-    creator: 'Culinary Team'
-  },
-  {
-    id: 'f4',
-    name: 'Detective Holmes',
-    description: 'Solve mysteries with the legendary detective',
-    imageUrl: '/sherlock.jpg',
-    category: 'Mystery',
-    creator: 'Mystery Team'
-  }
-]
 
 export default function Home() {
   const router = useRouter()
@@ -61,36 +22,29 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
-  const [hasAnimated, setHasAnimated] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Add these for scroll-based animations
-  const { scrollYProgress } = useScroll()
-  const scale = useTransform(scrollYProgress, [0.7, 0.9], [0.8, 1])
-  const opacity = useTransform(scrollYProgress, [0.7, 0.9], [0, 1])
-  const y = useTransform(scrollYProgress, [0.7, 0.9], [100, 0])
-  const rotate = useTransform(scrollYProgress, [0.7, 0.9], [-10, 0])
 
   useEffect(() => {
     setMounted(true)
-    // Set sidebar open by default only on desktop
     setIsSidebarOpen(window.innerWidth >= 768)
 
     const loadData = async () => {
       try {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
-
+        await new Promise(resolve => setTimeout(resolve, 1000));
         const apiCharactersRaw = await getCharacters();
-
         const apiCharacters = apiCharactersRaw.map(char => ({
           ...char,
           avatar: char.avatar || '/default.jpg',
         }));
-
         const userCharacters = JSON.parse(localStorage.getItem('characters') || '[]');
-
+        const uniqueCharacters = new Map();
+        const addToUniqueMap = (char: Character) => {
+          if (!uniqueCharacters.has(char.name)) {
+            uniqueCharacters.set(char.name, char);
+          }
+        };
+        [...apiCharacters, ...userCharacters, ...defaultCharacters].forEach(addToUniqueMap);
         const combinedCharacters = await Promise.all(
-          [...defaultCharacters, ...userCharacters, ...apiCharacters].map(async char => {
+          Array.from(uniqueCharacters.values()).map(async char => {
             if (!char.description) {
               try {
                 const response = await fetch(`https://api.example.com/character-description?name=${encodeURIComponent(char.name)}&category=${encodeURIComponent(char.category || '')}`);
@@ -103,7 +57,6 @@ export default function Home() {
             return char;
           })
         );
-
         setCharacters(combinedCharacters);
       } catch (error) {
         console.error('Error loading characters:', error);
@@ -114,7 +67,6 @@ export default function Home() {
     }
     loadData()
 
-    // Add resize listener to handle sidebar state
     const handleResize = () => {
       setIsSidebarOpen(window.innerWidth >= 768)
     }
@@ -123,12 +75,28 @@ export default function Home() {
   }, [])
 
   const filteredCharacters = characters.filter(character => {
-    const matchesCategory = !selectedCategory || character.category?.toLowerCase() === selectedCategory.toLowerCase();
+    // If a category is selected, show all characters in that category
+    if (selectedCategory) {
+      return character.category?.toLowerCase() === selectedCategory.toLowerCase();
+    }
+    
+    // Otherwise apply other filters
     const matchesSearch = searchQuery === '' || 
       character.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (character.description?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
       character.category?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    const excludedCharacters = [
+      'The Rock',
+      'Detective Holmes',
+      'Math Tutor',
+      'Picasso',
+      'Sports Analyst',
+      'Tech Guru',
+      'Beethoven',
+      '911 GT3',
+      'Jimmy'
+    ];
+    return matchesSearch && !excludedCharacters.includes(character.name);
   })
 
   const handleCategoryClick = (character: Character) => {
@@ -251,77 +219,186 @@ export default function Home() {
           {/* For You section */}
           <section className="space-y-4">
             <h2 className="text-xl sm:text-2xl font-semibold text-white">For You</h2>
-            <div className="flex overflow-x-auto gap-4 sm:gap-6 -mx-4 px-4 sm:-mx-6 sm:px-6 scrollbar-hide">
-              {characters
-                .sort((a, b) => {
-                  const priority = ['The Rock', 'Detective Holmes', 'Math Tutor'];
-                  const aPriority = priority.indexOf(a.name);
-                  const bPriority = priority.indexOf(b.name);
-                  return aPriority !== -1 && bPriority !== -1
-                    ? aPriority - bPriority
-                    : aPriority !== -1
-                    ? -1
-                    : bPriority !== -1
-                    ? 1
-                    : 0;
-                })
-                .map((character) => (
-                  <div
-                    key={character.id}
-                    onClick={() => handleCategoryClick(character)}
-                    className="flex-none w-[260px] sm:w-[300px] md:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group cursor-pointer"
-                  >
-                    <div className="flex items-start gap-3 sm:gap-4">
-                      <div className="relative w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16">
-                        <Image
-                          src={character.avatar}
-                          alt={character.name}
-                          fill
-                          className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-base sm:text-lg text-gray-100 font-semibold truncate group-hover:text-white">{character.name}</h3>
-                        <p className="text-sm text-gray-400 line-clamp-2 h-10 group-hover:text-gray-300">{character.description || 'No description available.'}</p>
-                        <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
-                          By {character.creator} • {formatNumber(character.interactions)} interactions
+            <div className="relative">
+              <button
+                onClick={() => {
+                  const container = document.getElementById('forYouScroll');
+                  if (container) {
+                    container.scrollTo({
+                      left: container.scrollLeft - 300,
+                      behavior: 'smooth'
+                    });
+                  }
+                }}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all duration-300 -ml-4"
+                aria-label="Scroll left"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <div id="forYouScroll" className="flex overflow-x-auto gap-4 sm:gap-6 -mx-4 px-4 sm:-mx-6 sm:px-6 scrollbar-hide">
+                {characters
+                  .sort((a, b) => {
+                    const priority = [
+                      'The Rock',
+                      'Detective Holmes',
+                      'Math Tutor',
+                      'Picasso',
+                      'Sports Analyst',
+                      'Tech Guru',
+                      'Beethoven',
+                      '911 GT3'
+                    ];
+                    const aPriority = priority.indexOf(a.name);
+                    const bPriority = priority.indexOf(b.name);
+                    return aPriority !== -1 && bPriority !== -1
+                      ? aPriority - bPriority
+                      : aPriority !== -1
+                      ? -1
+                      : bPriority !== -1
+                      ? 1
+                      : 0;
+                  })
+                  .filter(character => {
+                    const priority = [
+                      'The Rock',
+                      'Detective Holmes',
+                      'Math Tutor',
+                      'Picasso',
+                      'Sports Analyst',
+                      'Tech Guru',
+                      'Beethoven',
+                      '911 GT3'
+                    ];
+                    return priority.includes(character.name) && character.name !== 'Jimmy';
+                  })
+                  .map((character) => (
+                    <div
+                      key={character.id}
+                      onClick={() => handleCategoryClick(character)}
+                      className="flex-none w-[260px] sm:w-[300px] md:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group cursor-pointer"
+                    >
+                      <div className="flex items-start gap-3 sm:gap-4">
+                        <div className="relative w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16">
+                          <Image
+                            src={character.avatar}
+                            alt={character.name}
+                            fill
+                            className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base sm:text-lg text-gray-100 font-semibold truncate group-hover:text-white">{character.name}</h3>
+                          <p className="text-sm text-gray-400 line-clamp-2 h-10 group-hover:text-gray-300">{character.description || 'No description available.'}</p>
+                          <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
+                            By {character.creator} • {formatNumber(character.interactions)} interactions
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+              </div>
+              <button
+                onClick={() => {
+                  const container = document.getElementById('forYouScroll');
+                  if (container) {
+                    container.scrollTo({
+                      left: container.scrollLeft + 300,
+                      behavior: 'smooth'
+                    });
+                  }
+                }}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all duration-300 -mr-4"
+                aria-label="Scroll right"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
           </section>
 
           {/* Popular section */}
           <section className="space-y-4 divide-y divide-gray-700/50">
             <h2 className="text-xl sm:text-2xl font-semibold text-white pb-4">Popular</h2>
-            <div className="flex overflow-x-auto gap-4 sm:gap-6 -mx-4 px-4 sm:-mx-6 sm:px-6 scrollbar-hide pt-4">
-              {characters.map((character) => (
-                <div
-                  key={character.id}
-                  onClick={() => handleCategoryClick(character)}
-                  className="flex-none w-[280px] sm:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group cursor-pointer"
-                >
-                  <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="relative w-12 h-12 sm:w-16 sm:h-16">
-                      <Image
-                        src={character.avatar}
-                        alt={character.name}
-                        fill
-                        className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-base sm:text-lg text-gray-100 group-hover:text-white">{character.name}</h3>
-                      <p className="text-gray-400 text-xs sm:text-sm group-hover:text-gray-300">{character.description || 'No description available.'}</p>
-                      <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
-                        By {character.creator} • {formatNumber(character.interactions)} interactions
+            <div className="relative pt-4">
+              <button
+                onClick={() => {
+                  const container = document.getElementById('popularScroll');
+                  if (container) {
+                    container.scrollTo({
+                      left: container.scrollLeft - 300,
+                      behavior: 'smooth'
+                    });
+                  }
+                }}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all duration-300 -ml-4"
+                aria-label="Scroll left"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <div id="popularScroll" className="flex overflow-x-auto gap-4 sm:gap-6 -mx-4 px-4 sm:-mx-6 sm:px-6 scrollbar-hide">
+                {characters
+                  .filter(character => {
+                    const excludedCharacters = [
+                      'The Rock',
+                      'Detective Holmes',
+                      'Math Tutor',
+                      'Picasso',
+                      'Sports Analyst',
+                      'Tech Guru',
+                      'Beethoven',
+                      '911 GT3',
+                      'Jimmy'
+                    ];
+                    return !excludedCharacters.includes(character.name);
+                  })
+                  .map((character) => (
+                    <div
+                      key={character.id}
+                      onClick={() => handleCategoryClick(character)}
+                      className="flex-none w-[280px] sm:w-[350px] bg-[#1e1e1e] rounded-xl p-4 sm:p-6 border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group cursor-pointer"
+                    >
+                      <div className="flex items-start gap-3 sm:gap-4">
+                        <div className="relative w-12 h-12 sm:w-16 sm:h-16">
+                          <Image
+                            src={character.avatar}
+                            alt={character.name}
+                            fill
+                            className="rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-base sm:text-lg text-gray-100 group-hover:text-white">{character.name}</h3>
+                          <p className="text-gray-400 text-xs sm:text-sm group-hover:text-gray-300">{character.description || 'No description available.'}</p>
+                          <div className="mt-2 text-xs sm:text-sm text-gray-500 group-hover:text-gray-400">
+                            By {character.creator} • {formatNumber(character.interactions)} interactions
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  ))}
+              </div>
+              <button
+                onClick={() => {
+                  const container = document.getElementById('popularScroll');
+                  if (container) {
+                    container.scrollTo({
+                      left: container.scrollLeft + 300,
+                      behavior: 'smooth'
+                    });
+                  }
+                }}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all duration-300 -mr-4"
+                aria-label="Scroll right"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
           </section>
 
@@ -334,16 +411,39 @@ export default function Home() {
                 onSelectCategory={setSelectedCategory}
                 className="mb-6"
               />
-              {/* Horizontal scroll container */}
-              <div className="relative -mx-4 sm:-mx-6">
-                <div className="flex overflow-x-auto whitespace-nowrap scrollbar-hide px-4 sm:px-6 pb-4 space-x-4">
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    const container = document.getElementById('categoriesScroll');
+                    if (container) {
+                      container.scrollTo({
+                        left: container.scrollLeft - 300,
+                        behavior: 'smooth'
+                      });
+                    }
+                  }}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all duration-300 -ml-4"
+                  aria-label="Scroll left"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div id="categoriesScroll" className="flex overflow-x-auto gap-4 sm:gap-6 -mx-4 px-4 sm:-mx-6 sm:px-6 scrollbar-hide">
                   {isLoading ? (
                     Array.from({ length: 6 }).map((_, i) => (
                       <div 
                         key={i} 
                         className="inline-block flex-shrink-0 w-[280px] bg-[#1e1e1e] p-4 rounded-xl shadow-md border border-gray-700/50 transition-all duration-300 hover:bg-[#252525] hover:border-gray-600/50 hover:shadow-lg group"
                       >
-                        <LoadingCard />
+                        <div className="animate-pulse">
+                          <div className="w-full aspect-square bg-zinc-800 rounded-lg mb-3"></div>
+                          <div className="space-y-2">
+                            <div className="w-20 h-4 bg-zinc-800 rounded"></div>
+                            <div className="w-40 h-6 bg-zinc-800 rounded"></div>
+                            <div className="w-full h-4 bg-zinc-800 rounded"></div>
+                          </div>
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -384,6 +484,23 @@ export default function Home() {
                     ))
                   )}
                 </div>
+                <button
+                  onClick={() => {
+                    const container = document.getElementById('categoriesScroll');
+                    if (container) {
+                      container.scrollTo({
+                        left: container.scrollLeft + 300,
+                        behavior: 'smooth'
+                      });
+                    }
+                  }}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all duration-300 -mr-4"
+                  aria-label="Scroll right"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
               </div>
             </div>
           </section>
@@ -600,7 +717,6 @@ export default function Home() {
           </section>
         </div>
       </main>
-      <ScrollToTop />
     </>
   )
 }
